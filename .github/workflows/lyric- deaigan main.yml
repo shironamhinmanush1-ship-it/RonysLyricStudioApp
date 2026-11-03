@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>সহজ লিরিক ভিডিও স্টুডিও</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    /* মোবাইল স্ক্রিন স্ক্রল বা রিফ্রেশ হওয়া বন্ধ করার স্টাইল */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow-x: hidden;
+      overscroll-behavior-y: none;
+      background-color: #0d1117;
+      color: #e6edf3;
+      font-family: 'Hind Siliguri', sans-serif;
+    }
+    .app-container {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    h2 {
+      font-size: 1.25rem;
+      text-align: center;
+      color: #58a6ff;
+    }
+    .preview-box {
+      width: 100%;
+      aspect-ratio: 9/16;
+      max-height: 420px;
+      background: #161b22;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid #30363d;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 0 auto;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    .card {
+      background: #161b22;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #30363d;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    label {
+      font-size: 0.85rem;
+      color: #8b949e;
+      font-weight: bold;
+    }
+    input[type="file"], textarea, select {
+      width: 100%;
+      background: #0d1117;
+      color: #c9d1d9;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 8px;
+      font-size: 0.9rem;
+      font-family: inherit;
+      user-select: auto;
+      -webkit-user-select: auto;
+    }
+    textarea {
+      resize: none;
+      height: 70px;
+    }
+    .btn-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    button {
+      padding: 12px;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      font-weight: bold;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .btn-primary {
+      background: #238636;
+      color: #ffffff;
+    }
+    .btn-secondary {
+      background: #1f6feb;
+      color: #ffffff;
+    }
+    .btn-record {
+      background: #da3633;
+      color: #ffffff;
+      grid-column: span 2;
+    }
+    .status-text {
+      text-align: center;
+      font-size: 0.85rem;
+      color: #e3b341;
+      min-height: 18px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+  <h2>সহজ লিরিক স্টুডিও</h2>
+
+  <!-- ক্যানভাস প্রিভিউ -->
+  <div class="preview-box">
+    <canvas id="videoCanvas" width="1080" height="1920"></canvas>
+  </div>
+
+  <div id="status" class="status-text">গান ও ছবি যুক্ত করুন</div>
+
+  <!-- ধাপ ১: ফাইল আপলোড -->
+  <div class="card">
+    <label>১. ব্যাকগ্রাউন্ড ছবি নির্বাচন করুন</label>
+    <input type="file" id="bgInput" accept="image/*">
+
+    <label>২. অডিও বা গান নির্বাচন করুন</label>
+    <input type="file" id="audioInput" accept="audio/*">
+  </div>
+
+  <!-- ধাপ ২: লিরিক্স ও স্টাইল -->
+  <div class="card">
+    <label>৩. বাংলা লিরিক্স লিখুন (প্রতি লাইনে আলাদা লাইন)</label>
+    <textarea id="lyricInput" placeholder="এখানে লিরিক্স পেস্ট করুন..."></textarea>
+
+    <label>৪. টেক্সট স্টাইল</label>
+    <select id="textStyle">
+      <option value="white">সাদা টেক্সট (কালো শ্যাডো)</option>
+      <option value="gold">সোনালী টেক্সট</option>
+      <option value="cyan">উজ্জ্বল সায়ান</option>
+    </select>
+  </div>
+
+  <!-- ধাপ ৩: প্লে ও ভিডিও রেকর্ড বোতাম -->
+  <div class="btn-group">
+    <button id="playBtn" class="btn-secondary">গান চালান</button>
+    <button id="nextLyricBtn" class="btn-primary">পরের লাইন</button>
+    <button id="recordBtn" class="btn-record">ভিডিও সেভ করুন</button>
+  </div>
+</div>
+
+<audio id="audioPlayer"></audio>
+
+<script>
+  // ভুলবশত ব্যাক বা পেজ রিফ্রেশ হওয়া আটকানো
+  window.addEventListener('beforeunload', (e) => {
+    e.preventDefault();
+    e.returnValue = '';
+  });
+
+  const canvas = document.getElementById('videoCanvas');
+  const ctx = canvas.getContext('2d');
+  const audio = document.getElementById('audioPlayer');
+  const bgInput = document.getElementById('bgInput');
+  const audioInput = document.getElementById('audioInput');
+  const lyricInput = document.getElementById('lyricInput');
+  const textStyle = document.getElementById('textStyle');
+  const playBtn = document.getElementById('playBtn');
+  const nextLyricBtn = document.getElementById('nextLyricBtn');
+  const recordBtn = document.getElementById('recordBtn');
+  const status = document.getElementById('status');
+
+  let bgImage = null;
+  let lyrics = [];
+  let currentLyricIndex = 0;
+  let isRecording = false;
+  let mediaRecorder = null;
+  let recordedChunks = [];
+
+  // লোকাল স্টোরেজ থেকে আগের লিরিক্স লোড করা
+  if (localStorage.getItem('saved_lyrics')) {
+    lyricInput.value = localStorage.getItem('saved_lyrics');
+    parseLyrics();
+  }
+
+  lyricInput.addEventListener('input', () => {
+    localStorage.setItem('saved_lyrics', lyricInput.value);
+    parseLyrics();
+  });
+
+  function parseLyrics() {
+    lyrics = lyricInput.value.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    currentLyricIndex = 0;
+  }
+
+  // ছবি লোড
+  bgInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const img = new Image();
+      img.onload = () => {
+        bgImage = img;
+        drawFrame();
+        status.innerText = "ছবি লোড হয়েছে";
+      };
+      img.src = URL.createObjectURL(file);
+    }
+  });
+
+  // গান লোড
+  audioInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      audio.src = URL.createObjectURL(file);
+      status.innerText = "গান যুক্ত হয়েছে";
+    }
+  });
+
+  // টেক্সট র‍্যাপ লজিক
+  function drawWrappedText(text, x, y, maxWidth, lineHeight) {
+    const words = text.split(' ');
+    let line = '';
+    const lines = [];
+
+    for (let n = 0; n < words.length; n++) {
+      const testLine = line + words[n] + ' ';
+      const metrics = ctx.measureText(testLine);
+      if (metrics.width > maxWidth && n > 0) {
+        lines.push(line);
+        line = words[n] + ' ';
+      } else {
+        line = testLine;
+      }
+    }
+    lines.push(line);
+
+    const startY = y - ((lines.length - 1) * lineHeight) / 2;
+    for (let k = 0; k < lines.length; k++) {
+      ctx.fillText(lines[k].trim(), x, startY + (k * lineHeight));
+    }
+  }
+
+  // ক্যানভাস ড্র
+  function drawFrame() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (bgImage) {
+      // ব্যাকগ্রাউন্ড ছবি কভার আকারে আঁকা
+      const hRatio = canvas.width / bgImage.width;
+      const vRatio = canvas.height / bgImage.height;
+      const ratio = Math.max(hRatio, vRatio);
+      const centerShiftX = (canvas.width - bgImage.width * ratio) / 2;
+      const centerShiftY = (canvas.height - bgImage.height * ratio) / 2;
+      ctx.drawImage(bgImage, 0, 0, bgImage.width, bgImage.height,
+                    centerShiftX, centerShiftY, bgImage.width * ratio, bgImage.height * ratio);
+    } else {
+      ctx.fillStyle = "#111827";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // হালকা ডার্ক ওভারলে
+    ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // লিরিক্স ড্র
+    if (lyrics.length > 0 && lyrics[currentLyricIndex]) {
+      const currentText = lyrics[currentLyricIndex];
+      ctx.font = "bold 64px 'Hind Siliguri', sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      const style = textStyle.value;
+      if (style === 'gold') {
+        ctx.fillStyle = "#FFD700";
+        ctx.shadowColor = "rgba(0,0,0,0.8)";
+        ctx.shadowBlur = 12;
+      } else if (style === 'cyan') {
+        ctx.fillStyle = "#00FFFF";
+        ctx.shadowColor = "rgba(0,0,0,0.8)";
+        ctx.shadowBlur = 12;
+      } else {
+        ctx.fillStyle = "#FFFFFF";
+        ctx.shadowColor = "rgba(0,0,0,0.9)";
+        ctx.shadowBlur = 10;
+      }
+
+      drawWrappedText(currentText, canvas.width / 2, canvas.height / 2, 900, 85);
+      ctx.shadowBlur = 0;
+    }
+  }
+
+  function loop() {
+    drawFrame();
+    if (!audio.paused || isRecording) {
+      requestAnimationFrame(loop);
+    }
+  }
+
+  // গান প্লে/পজ
+  playBtn.addEventListener('click', () => {
+    if (!audio.src) {
+      alert("আগে একটি অডিও ফাইল নির্বাচন করুন");
+      return;
+    }
+    if (audio.paused) {
+      audio.play();
+      playBtn.innerText = "গান থামান";
+      loop();
+    } else {
+      audio.pause();
+      playBtn.innerText = "গান চালান";
+    }
+  });
+
+  // পরের লাইনে যাওয়া
+  nextLyricBtn.addEventListener('click', () => {
+    if (lyrics.length === 0) return;
+    currentLyricIndex = (currentLyricIndex + 1) % lyrics.length;
+    drawFrame();
+  });
+
+  // ভিডিও রেকর্ড ও সেভ
+  recordBtn.addEventListener('click', () => {
+    if (!audio.src) {
+      alert("আগে অডিও ফাইল লোড করুন");
+      return;
+    }
+
+    if (!isRecording) {
+      // রেকর্ডিং শুরু
+      const canvasStream = canvas.captureStream(30);
+      
+      // অডিও স্ট্রিম মার্জ করা
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const source = audioCtx.createMediaElementSource(audio);
+      const destination = audioCtx.createMediaStreamDestination();
+      source.connect(destination);
+      source.connect(audioCtx.destination);
+
+      const combinedTracks = [...canvasStream.getVideoTracks(), ...destination.stream.getAudioTracks()];
+      const combinedStream = new MediaStream(combinedTracks);
+
+      recordedChunks = [];
+      mediaRecorder = new MediaRecorder(combinedStream, { mimeType: 'video/webm' });
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) recordedChunks.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(recordedChunks, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Lyric_Video_${Date.now()}.webm`;
+        a.click();
+        status.innerText = "ভিডিও ডাউনলোড সম্পন্ন হয়েছে";
+      };
+
+      mediaRecorder.start();
+      isRecording = true;
+      audio.currentTime = 0;
+      audio.play();
+      recordBtn.innerText = "রেকর্ডিং থামান ও সেভ করুন";
+      status.innerText = "ভিডিও রেন্ডারিং হচ্ছে...";
+      loop();
+
+      audio.onended = () => {
+        if (isRecording) recordBtn.click();
+      };
+    } else {
+      // রেকর্ডিং শেষ
+      mediaRecorder.stop();
+      audio.pause();
+      isRecording = false;
+      recordBtn.innerText = "ভিডিও সেভ করুন";
+      playBtn.innerText = "গান চালান";
+    }
+  });
+
+  // প্রাথমিক ড্র
+  drawFrame();
+</script>
+</body>
+</html>
